@@ -1334,6 +1334,62 @@ class TestMidWarCards:
 
         assert breakdown['sides']['USSR']['battlegrounds'] == 0
 
+    @pytest.mark.parametrize('region,country,influence', [
+        (MapRegion.ASIA, 'North_Korea', 3),
+        (MapRegion.ASIA, 'Japan', 4),
+        (MapRegion.MIDDLE_EAST, 'Iraq', 3),
+    ])
+    def test_shuttle_diplomacy_temporarily_excludes_entire_country(
+            self, region, country, influence):
+        # GMT FAQ #73: one USSR-controlled BG does not leave presence.
+        # Ignoring Japan also removes its opposing-superpower adjacency VP.
+        game = make_game()
+        for name in CountryInfo.REGION_ALL[region]:
+            game.map[name].set_influence(0, 0)
+        game.map[country].set_influence(influence, 0)
+        game.limbo.append('Shuttle_Diplomacy')
+
+        breakdown = game.score_breakdown(region)
+
+        assert breakdown['sides']['USSR'] == {
+            'vp': 0, 'status': 'none', 'countries': 0,
+            'battlegrounds': 0, 'adjacency': 0,
+        }
+        assert breakdown['swing'] == 0
+        assert game.map[country].influence[Side.USSR] == influence
+        assert game.limbo == ['Shuttle_Diplomacy']
+        assert game.vp_track == 0
+
+    def test_shuttle_diplomacy_country_count_can_enable_us_domination(self):
+        game = make_game()
+        for name in CountryInfo.REGION_ALL[MapRegion.ASIA]:
+            game.map[name].set_influence(0, 0)
+        for name in ('North_Korea', 'Pakistan', 'Burma'):
+            game.map[name].set_influence(10, 0)
+        for name in ('India', 'South_Korea', 'Australia'):
+            game.map[name].set_influence(0, 10)
+        assert game.score_breakdown(MapRegion.ASIA)['swing'] == 0
+        game.limbo.append('Shuttle_Diplomacy')
+
+        breakdown = game.score_breakdown(MapRegion.ASIA)
+
+        assert breakdown['sides']['US']['status'] == 'domination'
+        assert breakdown['sides']['USSR']['countries'] == 2
+        assert breakdown['swing'] == -5  # USSR 3+1; US 7+2.
+
+    def test_shuttle_diplomacy_does_not_exclude_a_non_battleground(self):
+        game = make_game()
+        for name in CountryInfo.REGION_ALL[MapRegion.ASIA]:
+            game.map[name].set_influence(0, 0)
+        game.map['Afghanistan'].set_influence(2, 0)
+        game.limbo.append('Shuttle_Diplomacy')
+
+        breakdown = game.score_breakdown(MapRegion.ASIA)
+
+        assert breakdown['sides']['USSR']['countries'] == 1
+        assert breakdown['sides']['USSR']['status'] == 'presence'
+        assert breakdown['swing'] == 3
+
     def test_shuttle_diplomacy_prevents_ussr_asia_control(self):
         game = make_game()
         game.limbo.append('Shuttle_Diplomacy')

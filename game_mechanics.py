@@ -1778,10 +1778,17 @@ class Game:
                 vps[country.control] += 1
                 adjacency_vps[country.control] += 1
 
-            actual_bg_count = list(bg_count)
-            total_battlegrounds = sum(actual_bg_count)
-        if shuttle_applies:
-            bg_count[Side.USSR] = max(0, bg_count[Side.USSR] - 1)
+        actual_bg_count = list(bg_count)
+        actual_country_count = list(country_count)
+        total_battlegrounds = sum(actual_bg_count)
+        if shuttle_applies and bg_count[Side.USSR] > 0:
+            # GMT FAQ #73 excludes the entire country for this scoring.
+            # The US chooses Japan when possible, also denying its adjacency VP.
+            bg_count[Side.USSR] -= 1
+            country_count[Side.USSR] -= 1
+            if region == MapRegion.ASIA and self.map['Japan'].control == Side.USSR:
+                vps[Side.USSR] -= 1
+                adjacency_vps[Side.USSR] -= 1
 
         for side in (Side.USSR, Side.US):
             vps[side] += bg_count[side]
@@ -1791,7 +1798,7 @@ class Game:
                     vps[side] += control_vps
                     statuses[side] = 'control'
                 elif bg_count[side] > bg_count[side.opp] \
-                        and country_count[side] > actual_bg_count[side]:
+                        and actual_country_count[side] > actual_bg_count[side]:
                     vps[side] += domination_vps
                     statuses[side] = 'domination'
                 elif country_count[side] > 0:
