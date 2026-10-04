@@ -22,16 +22,19 @@ def _choose_coup_country(game_instance, side, effective_ops, card_name,
     """Coup target selection stage (module-level for deepcopy safety:
     game_instance must arrive via partial args so cloned games rebind it —
     a closure over the original game would keep mutating the wrong object)."""
+    options = tuple(n for n in CountryInfo.ALL
+                    if game_instance.map.can_coup(
+                        game_instance, n, side, free=free,
+                        ignore_defcon=ignore_defcon)
+                    and n in restricted_list)
+    if options and game_instance.lose_cmc_coup(side):
+        return
     game_instance.input_state = Input(
         side, InputType.SELECT_COUNTRY,
         partial(game_instance.coup_callback, side,
                 effective_ops, card_name, free=free, che=che,
                 ignore_defcon=ignore_defcon),
-        (n for n in CountryInfo.ALL
-            if game_instance.map.can_coup(
-                game_instance, n, side, free=free,
-                ignore_defcon=ignore_defcon)
-            and n in restricted_list),
+        options,
         prompt=f'Select a country to coup using operations from {card_name}.',
         context={
             'source_card': card_name,
@@ -540,6 +543,17 @@ class Game:
         if 'Cuban_Missile_Crisis' not in self.basket[side.opp]:
             return
         self.cards['Cuban_Missile_Crisis'].cuban_missile_remove(self, side)
+
+    def lose_cmc_coup(self, side: Side) -> bool:
+        """CMC loses on coup initiation, before dice or board changes."""
+        if 'Cuban_Missile_Crisis' not in self.basket[side.opp]:
+            return False
+        self.defcon_track = 1
+        self.terminate(
+            side=side.opp, reason='thermonuclear_war',
+            context={'defcon': 1, 'cause': 'Cuban_Missile_Crisis',
+                     'loser': side.toStr()})
+        return True
 
     def can_play_event(self, side: Side, card_name: str):
         '''
@@ -1167,6 +1181,8 @@ class Game:
                       name: str, free=False, che=False,
                       ignore_defcon=False) -> bool:
         self.input_state.reps -= 1
+        if self.lose_cmc_coup(side):
+            return True
 
         local_ops_modifier = 0
         if card_name == 'The_China_Card' and name in self.cards['The_China_Card']._region:

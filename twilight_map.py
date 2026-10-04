@@ -153,6 +153,8 @@ class GameMap:
         assert(self.can_coup(
             game_instance, name, side, free=free,
             ignore_defcon=ignore_defcon))
+        if game_instance.lose_cmc_coup(side):
+            return
         country = self[name]
 
         coup_modifier = 0
@@ -185,20 +187,7 @@ class GameMap:
         print(
             f'Coup {outcome} with roll of {die_roll}. Difference: {difference}')
 
-        # Cuban Missile Crisis overrides Nuclear Subs
-        if 'Cuban_Missile_Crisis' in game_instance.basket[side.opp]:
-            game_instance.defcon_track = 1
-            print('Game ended by thermonuclear war')
-            game_instance.terminate(
-                side=side.opp,
-                reason='thermonuclear_war',
-                context={
-                    'defcon': 1,
-                    'cause': 'Cuban_Missile_Crisis',
-                    'loser': side.toStr(),
-                },
-            )
-        elif country.info.battleground:
+        if country.info.battleground:
             if side == Side.US:
                 if 'Nuclear_Subs' not in game_instance.basket[Side.US]:
                     game_instance.change_defcon(-1)
