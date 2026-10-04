@@ -19,6 +19,48 @@ from game_mechanics import Game
 from tests.helpers import make_game
 
 
+class TestEventCountrySuperpowers:
+    @pytest.mark.parametrize('side', [Side.USSR, Side.US])
+    @pytest.mark.parametrize('country_function', [
+        Country.increment_influence, Country.decrement_influence,
+    ])
+    def test_shared_event_choices_exclude_both_superpowers(self, side, country_function):
+        game = make_game()
+        for name in ('US', 'USSR', 'France', 'Iran'):
+            game.map[name].set_influence(5, 5)
+        game.event_place_influence(
+            side, country_function, side,
+            (name for name in ('US', 'USSR', 'France', 'Iran')),
+            'Choose an event country.', reps=2, max_per_option=1,
+        )
+        assert set(game.input_state.legal_options) == {'France', 'Iran'}
+        for homeland in ('US', 'USSR'):
+            assert game.input_state.recv(homeland) is False
+            assert game.map[homeland].influence == [5, 5]
+            assert game.input_state.reps == 2
+        for name in ('France', 'Iran'):
+            assert game.input_state.recv(name) is True
+            expected = 6 if country_function is Country.increment_influence else 4
+            assert game.map[name].influence[side] == expected
+        assert game.input_state.complete
+
+    @pytest.mark.parametrize('actor', [Side.USSR, Side.US])
+    def test_voice_of_america_cannot_remove_homeland_influence(self, actor):
+        game = make_game()
+        for country in game.map.ALL.values():
+            country.set_influence(0, 0)
+        for name in ('US', 'USSR', 'Iran', 'Cuba', 'India', 'France'):
+            game.map[name].set_influence(2, 0)
+        game.cards['The_Voice_Of_America'].use_event(game, actor)
+        assert game.input_state.side == Side.US
+        assert set(game.input_state.legal_options) == {'Iran', 'Cuba', 'India'}
+        for name in ('Iran', 'Iran', 'Cuba', 'Cuba'):
+            assert game.input_state.recv(name) is True
+        assert game.input_state.complete
+        for name in ('US', 'USSR', 'India', 'France'):
+            assert game.map[name].influence[Side.USSR] == 2
+
+
 class TestRulebookAlignment:
     def test_terminate_draw_on_zero_vp(self):
         game = make_game()

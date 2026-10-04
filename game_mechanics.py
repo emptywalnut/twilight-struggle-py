@@ -1259,6 +1259,7 @@ class Game:
         one side to remove the other side's influence. Thin wrapper over the
         standard SELECT_COUNTRY + event_influence_callback Input (see
         event_influence_callback for the country_function shapes).'''
+        options = tuple(name for name in options if not self.map[name].info.superpower)
         self.input_state = Input(
             side, InputType.SELECT_COUNTRY,
             partial(self.event_influence_callback,
