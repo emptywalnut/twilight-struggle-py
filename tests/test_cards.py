@@ -847,6 +847,15 @@ class TestEarlyWarCards:
         game.cards['Defectors'].use_event(game, Side.USSR)
         assert game.vp_track == -1  # US gains 1 VP
 
+    @pytest.mark.parametrize('ar', [0, 1])
+    @pytest.mark.parametrize('actor', [Side.US, Side.USSR])
+    @pytest.mark.parametrize('phasing', [Side.US, Side.USSR])
+    def test_defectors_vp_requires_soviet_action_round(self, ar, actor, phasing):
+        game = make_game()
+        game.ar_track, game.ar_side = ar, phasing
+        game.cards['Defectors'].use_event(game, actor)
+        assert game.vp_track == (-1 if ar > 0 and actor == phasing == Side.USSR else 0)
+
     def test_defectors_cannot_be_played_as_event(self):
         game = make_game()
         assert game.cards['Defectors'].can_event(game, Side.US) is False

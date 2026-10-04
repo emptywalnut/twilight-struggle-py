@@ -1073,7 +1073,8 @@ class Defectors(Card):
             game_instance.discard_pile.append(
                 game_instance.headline_bin[Side.USSR])
             game_instance.headline_bin[Side.USSR] = ''
-        if side == Side.USSR and game_instance.ar_side == Side.USSR:
+        if (game_instance.ar_track > 0 and side == Side.USSR
+                and game_instance.ar_side == Side.USSR):
             game_instance.change_vp(Side.US.vp_mult)
 
 
