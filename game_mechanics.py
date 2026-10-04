@@ -1299,6 +1299,23 @@ class Game:
                 self.input_state.remove_option(name)
             return True
 
+    def select_free_operations(self, side, card_name, countries, prompt,
+                               ignore_defcon=False):
+        """Offer only eligible event-granted operations, or decline them."""
+        countries = tuple(countries)
+        options = {}
+        for name, operation, eligible in (
+            ('Free coup attempt', self.card_operation_coup, self.map.can_coup),
+            ('Free realignment rolls', self.card_operation_realignment, self.map.can_realignment),
+        ):
+            if any(eligible(self, n, side, free=True, ignore_defcon=ignore_defcon)
+                   for n in countries):
+                options[name] = partial(operation, side, card_name,
+                                        restricted_list=countries, free=True,
+                                        ignore_defcon=ignore_defcon)
+        options['Do not conduct free operations.'] = lambda: None
+        self.choose_option(side, options, prompt)
+
     def choose_option(self, side: Side, option_function_mapping: dict,
                       prompt: str) -> None:
         '''Prompt ``side`` to pick one of several options (SELECT_MULTIPLE).'''

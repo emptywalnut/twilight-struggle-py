@@ -1509,21 +1509,8 @@ class Junta(Card):
     event_text = 'Place 2 Influence in any one Central or South American country. Then you may make a free Coup attempt or Realignment roll in one of these regions (using this card\'s Operations Value).'
 
     def stage_2(self, game_instance, side, ca_sa):
-        def coup(game_instance, side, ca_sa):
-            game_instance.card_operation_coup(
-                side, 'Junta', restricted_list=ca_sa, free=True)
-
-        def realignment(game_instance, side, ca_sa):
-            game_instance.card_operation_realignment(
-                side, 'Junta', restricted_list=ca_sa, free=True)
-
-        option_function_mapping = {
-            'Free coup attempt': partial(coup, game_instance, side, ca_sa),
-            'Free realignment rolls': partial(realignment, game_instance, side, ca_sa)
-        }
-
-        game_instance.choose_option(
-            side, option_function_mapping,
+        game_instance.select_free_operations(
+            side, self.name, ca_sa,
             'Junta: Player may make free Coup attempts or realignment rolls in Central America or South America.',
         )
 
@@ -2882,25 +2869,10 @@ class Tear_Down_This_Wall(Card):
             game_instance.basket[Side.USSR].remove('Willy_Brandt')
         game_instance.map['East_Germany'].change_influence(0, 3)
 
-        def coup(game_instance):
-            game_instance.card_operation_coup(Side.US, 'Tear_Down_This_Wall', restricted_list=list(
-                CountryInfo.REGION_ALL[MapRegion.EUROPE]), free=True,
-                ignore_defcon=True)
-
-        def realignment(game_instance):
-            game_instance.card_operation_realignment(Side.US, 'Tear_Down_This_Wall', restricted_list=list(
-                CountryInfo.REGION_ALL[MapRegion.EUROPE]), free=True,
-                ignore_defcon=True)
-
-        option_function_mapping = {
-            'Free coup attempt': partial(coup, game_instance),
-            'Free realignment rolls': partial(realignment, game_instance),
-            'Do not conduct free operations.': lambda: None,
-        }
-
-        game_instance.choose_option(
-            Side.US, option_function_mapping,
+        game_instance.select_free_operations(
+            Side.US, self.name, CountryInfo.REGION_ALL[MapRegion.EUROPE],
             'Tear Down This Wall: US player may make free Coup attempts or realignment rolls in Europe.',
+            ignore_defcon=True,
         )
 
 
