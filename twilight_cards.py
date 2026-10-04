@@ -1609,23 +1609,8 @@ class Missile_Envy(Card):
         self.exchange = True
 
         if game.cards[card].owner == side.opp:
-            options = []
-            if game.can_place_influence(side, card):
-                options.append(CardAction.INFLUENCE.name)
-            if game.can_coup_at_all(side):
-                options.append(CardAction.COUP.name)
-            if game.can_realign_at_all(side):
-                options.append(CardAction.REALIGNMENT.name)
-            if game.can_space(side, card):
-                options.append(CardAction.SPACE.name)
-
-            game.input_state = Input(
-                side, InputType.SELECT_CARD_ACTION,
-                partial(game.action_callback, side, card,
-                        no_event=True),
-                options,
-                prompt=f'Opponent has traded {card}. Select an action.'
-            )
+            game.select_action(side, card, is_event_resolved=True)
+            game.input_state.prompt = f'Opponent has traded {card}. Select an action.'
 
         else:
             # must append backwards
