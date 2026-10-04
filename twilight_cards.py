@@ -2695,8 +2695,6 @@ class Glasnost(Card):
         if game_instance.terminated:
             return
         if reformer_active:
-            game_instance.safe_remove_from_basket(
-                Side.USSR, 'The_Reformer')
             game_instance.select_action(
                 Side.USSR, f'Blank_4_Op_Card', can_coup=False, is_event_resolved=True)
 

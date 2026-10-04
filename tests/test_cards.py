@@ -1654,9 +1654,10 @@ class TestLateWarCards:
         assert game.vp_track == 2
         # Should have triggered select_action
         assert game.input_state is not None
-        assert 'The_Reformer' not in game.basket[Side.USSR]
+        assert 'The_Reformer' in game.basket[Side.USSR]
+        assert 'COUP' not in game.input_state.legal_options
 
-    def test_glasnost_restores_ussr_coups_in_europe(self):
+    def test_glasnost_preserves_reformer_ussr_coup_ban_in_europe(self):
         game = make_game()
         game.defcon_track = 5
         game.map['France'].set_influence(0, 1)
@@ -1665,7 +1666,7 @@ class TestLateWarCards:
 
         game.cards['Glasnost'].use_event(game, Side.USSR)
 
-        assert game.map.can_coup(game, 'France', Side.USSR) is True
+        assert game.map.can_coup(game, 'France', Side.USSR) is False
 
     def test_latin_debt_crisis_returns_to_discard_after_event(self):
         game = make_game()
