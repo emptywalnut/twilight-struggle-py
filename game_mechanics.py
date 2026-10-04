@@ -624,6 +624,32 @@ class Game:
 
         return available_space_turn(self, side) and enough_ops(self, side, card_name)
 
+    def pending_hand_cards(self, side: Side):
+        """Already played cards physically retained until queued settlement."""
+        pending = set()
+        inp = self.input_state
+        if (inp is not None and inp.state == InputType.SELECT_CARD_ACTION
+                and (inp.context.get('is_event_resolved') or inp.context.get('un_intervention'))):
+            pending.add(inp.context['source_card'])
+        for stage in self.stage_list:
+            if not isinstance(stage, partial):
+                continue
+            callback = stage.func
+            if (getattr(callback, '__name__', '') == 'dispose'
+                    and isinstance(getattr(callback, '__self__', None), Card)
+                    and stage.args == (self, side)):
+                pending.add(callback.__self__.name)
+            elif (callback == self.select_action and stage.args[:1] == (side,)
+                  and stage.keywords.get('is_event_resolved')):
+                pending.add(stage.args[1])
+        return pending.intersection(self.hand[side])
+
+    def eligible_ops_discards(self, side: Side, minimum_ops, *, hand=None):
+        pending = self.pending_hand_cards(side)
+        return [n for n in (self.hand[side] if hand is None else hand)
+                if n not in pending and n != 'The_China_Card'
+                and self.get_global_effective_ops(side, self.cards[n].ops) >= minimum_ops]
+
     def select_card(self, side: Side = Side.NEUTRAL):
         '''
         Stage for a single player to choose a card in hand to play.
@@ -1396,12 +1422,10 @@ class Game:
         return True
 
     def qbt_discard_callback(self, side: Side, trap_name: str, card_name: str):
+        mode, options = self.qbt_options(side)
+        if trap_name not in self.basket[side] or mode != 'discard' or card_name not in options:
+            return False
         self.input_state.reps -= 1
-        if card_name not in self.hand[side]:
-            raise RuntimeError(
-                f"{trap_name} discard selected card not in hand: {card_name}. "
-                f"hand={self.hand[side]} basket={self.basket[side]}"
-            )
         self.hand[side].remove(card_name)
         if card_name == 'Missile_Envy':
             self.safe_remove_from_basket(side, 'Missile_Envy')
@@ -1413,12 +1437,27 @@ class Game:
             self.qbt_dice_callback, side, trap_name)))
         return True
 
-    def qbt_play_scoring_callback(self, side: Side, card_name: str):
+    def qbt_play_scoring_callback(self, side: Side, trap_name: str, card_name: str):
+        mode, options = self.qbt_options(side)
+        if trap_name not in self.basket[side] or mode != 'scoring' or card_name not in options:
+            return False
         self.input_state.reps -= 1
         self.stage_list.append(
             partial(self.resolve_card_action, side, card_name, CardAction.PLAY_EVENT.name)
         )
         return True
+
+    def qbt_options(self, side: Side, hand=None):
+        hand = self.hand[side] if hand is None else hand
+        pending = self.pending_hand_cards(side)
+        scoring = [n for n in hand if self.cards[n].card_type == 'Scoring'
+                   and n not in pending]
+        suitable = self.eligible_ops_discards(side, 2, hand=hand)
+        if 'Missile_Envy' in self.basket[side] and 'Missile_Envy' in suitable:
+            suitable = ['Missile_Envy']
+        if scoring and (len(scoring) >= self.ars_remaining(side) or not suitable):
+            return 'scoring', scoring
+        return ('discard', suitable) if suitable else ('skip', [])
 
     def qbt_discard(self, side: Side, trap_name: str):
         '''
@@ -1432,57 +1471,17 @@ class Game:
             Name of the basket effect. Can be either 'Quagmire' or 'Bear_Trap'.
         '''
 
-        scoring_cards = [n for n in self.hand[side]
-                         if self.cards[n].info.card_type == 'Scoring']
-
         if 'Missile_Envy' in self.basket[side] and 'Missile_Envy' not in self.hand[side]:
             self.safe_remove_from_basket(side, 'Missile_Envy')
-
-        suitable_cards = []
-        if 'Missile_Envy' in self.basket[side] and 'Missile_Envy' in self.hand[side]:
-            me_ops = self.get_global_effective_ops(
-                side, self.cards['Missile_Envy'].info.ops)
-            if me_ops >= 2:
-                suitable_cards = ['Missile_Envy']
-            else:
-                suitable_cards = [
-                    n for n in self.hand[side]
-                    if n not in ('The_China_Card', 'Missile_Envy')
-                    and self.get_global_effective_ops(side, self.cards[n].info.ops) >= 2
-                ]
-        else:
-            suitable_cards = [
-                n for n in self.hand[side]
-                if n != 'The_China_Card'
-                and self.get_global_effective_ops(side, self.cards[n].info.ops) >= 2
-            ]
-
-        # If we have as many scoring cards as action rounds, then we must play
-        # a scoring card. Q/BT stays in basket.
-        if len(scoring_cards) == self.ars_remaining(side):
+        mode, options = self.qbt_options(side)
+        if options:
             self.input_state = Input(
                 side, InputType.SELECT_CARD,
-                partial(self.qbt_play_scoring_callback, side),
-                scoring_cards,
-                prompt='You must play a scoring card.'
-            )
-            return
-
-        # Otherwise, if there are discardable cards, you have to discard from these.
-        if suitable_cards:
-            self.input_state = Input(
-                side, InputType.SELECT_CARD,
-                partial(self.qbt_discard_callback, side, trap_name),
-                suitable_cards,
-                prompt='You must discard a card to be released.'
-            )
-        # If there are no valid QBT discards but scoring cards remain, scoring must be played.
-        elif scoring_cards:
-            self.input_state = Input(
-                side, InputType.SELECT_CARD,
-                partial(self.qbt_play_scoring_callback, side),
-                scoring_cards,
-                prompt='You must play a scoring card.'
+                partial(self.qbt_discard_callback if mode == 'discard' else self.qbt_play_scoring_callback,
+                        side, trap_name),
+                options,
+                prompt='You must discard a card to be released.' if mode == 'discard' else 'You must play a scoring card.',
+                context={'source_card': trap_name, 'hand_exit': 'trap_target', 'trap_mode': mode},
             )
         # If you don't have suitable discards or scoring cards, then AR is skipped.
         else:
