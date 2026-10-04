@@ -737,6 +737,9 @@ class Game:
              and self.ar_track == 8)
         ]
 
+        if self.cards[card_name].card_type == 'Scoring':
+            bool_arr = [True, False, False, False, False, False, False]
+
         self.input_state = Input(
             side, InputType.SELECT_CARD_ACTION,
             partial(self.action_callback, side, card_name,
