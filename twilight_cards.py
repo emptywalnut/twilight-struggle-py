@@ -2858,7 +2858,7 @@ class Latin_American_Debt_Crisis(Card):
             Side.US, InputType.SELECT_CARD,
             partial(game_instance.may_discard_callback, Side.US,
                     did_not_discard_fn=partial(
-                        game_instance.stage_list.append,
+                        list.append, game_instance.stage_list,
                         partial(_ladc_did_not_discard, game_instance))),
             eligible_discards,
             prompt='You may discard a card. If you choose not to discard, USSR chooses two countries in South America to double USSR influence.',

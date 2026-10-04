@@ -6,6 +6,7 @@ the official Twilight Struggle rules.
 """
 
 import math
+from copy import deepcopy
 import pytest
 from functools import partial
 
@@ -17,6 +18,38 @@ from twilight_playerview import PlayerView
 from game_mechanics import Game
 
 from tests.helpers import make_game
+
+
+class TestDebtCrisisCloneQueue:
+    @pytest.mark.parametrize('actor', [Side.USSR, Side.US])
+    def test_declining_discard_only_schedules_on_the_clone(self, actor):
+        game = make_game()
+        game.hand[Side.US] = ['Nuclear_Test_Ban']
+        for name in ('Argentina', 'Brazil'):
+            game.map[name].set_influence(2, 0)
+        game.cards['Latin_American_Debt_Crisis'].use_event(game, actor)
+        clones = [deepcopy(game), deepcopy(game)]
+
+        for clone in clones:
+            assert clone.input_state.recv('Do not discard.') is True
+            assert len(clone.stage_list) == 1
+            assert game.stage_list == []
+            assert game.input_state.reps == 1
+            clone.stage_complete()
+            assert clone.input_state.side == Side.USSR
+            for name in ('Argentina', 'Brazil'):
+                assert clone.input_state.recv(name) is True
+                assert clone.map[name].influence[Side.USSR] == 4
+                assert game.map[name].influence[Side.USSR] == 2
+            assert clone.input_state.complete
+            assert clone.hand[Side.US] == ['Nuclear_Test_Ban']
+
+        assert game.input_state.recv('Do not discard.') is True
+        assert len(game.stage_list) == 1
+        game.stage_complete()
+        assert game.input_state.recv('Argentina') is True
+        assert game.input_state.recv('Brazil') is True
+        assert game.input_state.complete
 
 
 class TestRulebookAlignment:
