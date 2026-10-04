@@ -5,6 +5,7 @@ Tests verify card events produce correct game state changes based on
 the official Twilight Struggle rules.
 """
 
+import copy
 import math
 import pytest
 from functools import partial
@@ -1992,6 +1993,19 @@ class TestLateWarCards:
 # ===========================================================================
 
 class TestGameMechanics:
+
+    @pytest.mark.parametrize('side, card', [(Side.US, 'Containment'),
+                                         (Side.USSR, 'Brezhnev_Doctrine')])
+    def test_turn_effect_expiration_is_local_to_deepcopied_game(self, side, card):
+        game = make_game()
+        game.cards[card].use_event(game, side)
+        first, second = copy.deepcopy(game), copy.deepcopy(game)
+        for clone in (first, second):
+            clone.end_turn_stage_list.pop()()
+            assert card not in clone.basket[side]
+            assert card in game.basket[side]
+        game.end_turn_stage_list.pop()()
+        assert card not in game.basket[side]
 
     def test_change_vp(self):
         game = make_game()

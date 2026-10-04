@@ -165,11 +165,11 @@ class Game:
         """Register a persistent effect that lasts until the end of turn.
 
         Adds ``name`` to the side's basket and schedules its automatic removal
-        in ``end_turn_stage_list`` (run by end_of_turn's clear_baskets, which
-        tolerates a missing item via ValueError)."""
+        in ``end_turn_stage_list``. Bind the game method so deepcopy rebinds
+        expiration to the cloned game, not the original list's remove method."""
         self.basket[side].append(name)
         self.end_turn_stage_list.append(
-            partial(self.basket[side].remove, name))
+            partial(self.safe_remove_from_basket, side, name))
 
     def terminate(self, side: Side = Side.NEUTRAL, reason: str = '', context: dict = None):
         '''
