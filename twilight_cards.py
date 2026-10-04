@@ -1717,14 +1717,14 @@ def _sa_unrest_sa(game_instance):
     game_instance.map.change_influence('South_Africa', Side.USSR, 2)
 
 
-def _sa_unrest_sa_angola(game_instance):
+def _sa_unrest_neighbors(game_instance):
     game_instance.map.change_influence('South_Africa', Side.USSR, 1)
-    game_instance.map.change_influence('Angola', Side.USSR, 2)
-
-
-def _sa_unrest_sa_botswana(game_instance):
-    game_instance.map.change_influence('South_Africa', Side.USSR, 1)
-    game_instance.map.change_influence('Botswana', Side.USSR, 2)
+    game_instance.event_place_influence(
+        Side.USSR, Country.increment_influence, Side.USSR,
+        ('Angola', 'Botswana'),
+        prompt='Place 2 influence in countries adjacent to South Africa.',
+        reps=2, max_per_option=2,
+    )
 
 
 class South_African_Unrest(Card):
@@ -1743,8 +1743,7 @@ class South_African_Unrest(Card):
 
         option_function_mapping = {
             'Add 2 Influence to South Africa.': partial(_sa_unrest_sa, game_instance),
-            'Add 1 Influence to South Africa and 2 Influence to Angola.': partial(_sa_unrest_sa_angola, game_instance),
-            'Add 1 Influence to South Africa and 2 Influence to Botswana.': partial(_sa_unrest_sa_botswana, game_instance)
+            'Add 1 Influence to South Africa and 2 Influence to adjacent countries.': partial(_sa_unrest_neighbors, game_instance)
         }
 
         game_instance.choose_option(

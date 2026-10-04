@@ -19,6 +19,30 @@ from game_mechanics import Game
 from tests.helpers import make_game
 
 
+class TestSouthAfricanUnrestDistribution:
+    @pytest.mark.parametrize('actor', [Side.USSR, Side.US])
+    @pytest.mark.parametrize('neighbors', [
+        ('Angola', 'Angola'), ('Botswana', 'Botswana'), ('Angola', 'Botswana'),
+    ])
+    def test_neighbor_influence_can_be_split_or_concentrated(self, actor, neighbors):
+        game = make_game()
+        for name in ('South_Africa', 'Angola', 'Botswana'):
+            game.map[name].set_influence(0, 1)
+        game.cards['South_African_Unrest'].use_event(game, actor)
+        assert game.input_state.side == Side.USSR
+        assert game.input_state.recv(
+            'Add 1 Influence to South Africa and 2 Influence to adjacent countries.'
+        ) is True
+        assert game.map['South_Africa'].influence == [1, 1]
+        assert game.input_state.side == Side.USSR
+        assert set(game.input_state.legal_options) == {'Angola', 'Botswana'}
+        for name in neighbors:
+            assert game.input_state.recv(name) is True
+        assert game.input_state.complete
+        for name in ('Angola', 'Botswana'):
+            assert game.map[name].influence == [neighbors.count(name), 1]
+
+
 class TestRulebookAlignment:
     def test_terminate_draw_on_zero_vp(self):
         game = make_game()
@@ -1155,7 +1179,10 @@ class TestMidWarCards:
         game = make_game()
         game.cards['South_African_Unrest'].use_event(game, Side.USSR)
         options = list(game.input_state.selection.keys())
-        assert 'Add 1 Influence each to South Africa, Angola, and Botswana.' not in options
+        assert set(options) == {
+            'Add 2 Influence to South Africa.',
+            'Add 1 Influence to South Africa and 2 Influence to adjacent countries.',
+        }
 
     def test_south_african_unrest_is_chosen_by_ussr_when_us_triggers_event(self):
         game = make_game()
