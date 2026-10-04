@@ -45,6 +45,7 @@ class Game:
         ARS_BY_TURN = (None, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7)
         AR_ORDER = [Side.USSR, Side.US]
         SPACE_ROLL_MAX = (3, 4, 3, 4, 3, 4, 3, 2)
+        SPACE_MIN_OPS = (2, 2, 2, 2, 3, 3, 3, 4)
         SPACE_VPS = ((2, 1), (0, 0), (2, 0), (0, 0),
                      (3, 1), (0, 0), (4, 2), (2, 0))
         SCORING = {
@@ -600,29 +601,11 @@ class Game:
         their space race marker.
         '''
 
-        def available_space_turn(self, side: Side):
-            if self.spaced_turns[side] == 2:
-                return False
-            elif self.spaced_turns[side] == 0:
-                return True
-            elif self.space_track[side.opp] < 2 and self.space_track[side] >= 2:
-                return True
-            else:
-                return False
-
-        def enough_ops(self, side: Side, card_name: str):
-            if self.space_track[side] == 8:
-                return False
-            if self.space_track[side] == 7 and self.get_global_effective_ops(side, self.cards[card_name].info.ops) == 4:
-                return True
-            elif self.space_track[side] >= 5 and self.get_global_effective_ops(side, self.cards[card_name].info.ops) >= 3:
-                return True
-            elif self.get_global_effective_ops(side, self.cards[card_name].info.ops) >= 2:
-                return True
-            else:
-                return False
-
-        return available_space_turn(self, side) and enough_ops(self, side, card_name)
+        level = self.space_track[side]
+        attempts = 2 if level >= 2 and self.space_track[side.opp] < 2 else 1
+        ops = self.get_global_effective_ops(side, self.cards[card_name].info.ops)
+        return (level < 8 and self.spaced_turns[side] < attempts
+                and ops >= Game.Default.SPACE_MIN_OPS[level])
 
     def select_card(self, side: Side = Side.NEUTRAL):
         '''
