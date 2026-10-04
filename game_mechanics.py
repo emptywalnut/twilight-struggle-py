@@ -1059,6 +1059,9 @@ class Game:
                 restricted = china._region
             else:
                 restricted = None
+            # Event limits persist; regional bonuses may narrow, never widen them.
+            allowed = self.input_state.context.get('restricted_countries', CountryInfo.ALL)
+            restricted = [n for n in allowed if restricted is None or n in restricted]
             self.stage_list.append(
                 partial(self.card_operation_realignment, side,
                         card_name=card_name, reps=reps,
