@@ -983,8 +983,9 @@ def _destalinization_begin_placement(game_instance, removal_input):
 def _destalinization_remove_callback(game_instance, country_name):
     removal_input = game_instance.input_state
     if country_name != game_instance.input_state.option_stop_early:
-        game_instance.event_influence_callback(
-            Country.decrement_influence, Side.USSR, country_name)
+        if not game_instance.event_influence_callback(
+                Country.decrement_influence, Side.USSR, country_name):
+            return False
         if (removal_input.reps
                 and any(removal_input.available_options)):
             # Update early-stop text to reflect how many points were moved.
@@ -1288,8 +1289,11 @@ class Cuban_Missile_Crisis(Card):
             # 函数体不得引用外层作用域的 game_instance —— 否则克隆上触发
             # 回调会改写原游戏（08-16 搜索实弹抓到的泄漏）。
             if opt != game_instance.input_state.option_stop_early:
-                game_instance.event_influence_callback(
-                    partial(Country.decrement_influence, amt=2), side, opt)
+                if game_instance.map[opt].influence[side] < 2:
+                    return False
+                if not game_instance.event_influence_callback(
+                        partial(Country.decrement_influence, amt=2), side, opt):
+                    return False
                 game_instance.safe_remove_from_basket(side.opp, 'Cuban_Missile_Crisis')
             else:
                 game_instance.input_state.reps -= 1

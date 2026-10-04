@@ -1289,12 +1289,12 @@ class Game:
             self.input_state.reps = 0
             return True
 
-        self.input_state.reps -= 1
         status = country_function(self.map[name], side)
         # Some callbacks can temporarily drive influence to zero; remove exhausted options.
         if not status:
             return False
         else:
+            self.input_state.reps -= 1
             if not self.map[name].influence[side]:
                 self.input_state.remove_option(name)
             return True
