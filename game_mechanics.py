@@ -484,8 +484,22 @@ class Game:
 
     def ar_complete(self):
 
+        if self.terminated:
+            return
+
         # Action rounds must never see a stale headline attribution marker.
         self.headline_resolving_side = None
+
+        # Each player's card play is an AR. Resolve NORAD before advancing
+        # to the opponent, including the final and extra rounds.
+        if self.ar_track > 0 and self.defcon_reached_two_this_ar:
+            self.defcon_reached_two_this_ar = False
+            if ('NORAD' in self.basket[Side.US]
+                    and self.map['Canada'].control == Side.US):
+                self.stage_list.append(self.ar_complete)
+                self.cards['NORAD'].place_norad_influence(self)
+                if self.input_state is not None:
+                    return
 
         if (self.ar_track > 0
                 and self.ar_side in Game.Default.AR_ORDER):
@@ -496,14 +510,6 @@ class Game:
             if not self.ar_track or self.ar_side == len(Game.Default.AR_ORDER):
                 # check if just ended headline or
                 # if AR should be incremented
-                if self.ar_track > 0 and self.defcon_reached_two_this_ar:
-                    self.defcon_reached_two_this_ar = False
-                    if ('NORAD' in self.basket[Side.US]
-                            and self.map['Canada'].control == Side.US):
-                        self.stage_list.append(self.ar_complete)
-                        self.cards['NORAD'].place_norad_influence(self)
-                        if self.input_state is not None:
-                            return
                 self.ar_track += 1
                 # The old flags refer to the PREVIOUS AR (both sides already
                 # completed it). Reset them before recomputing, otherwise

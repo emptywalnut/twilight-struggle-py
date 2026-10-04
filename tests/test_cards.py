@@ -2292,14 +2292,10 @@ class TestDefconInteractions:
         game.change_defcon(-1)
         game.cards['NORAD'].use_event(game, Side.US)
         game.ar_complete()
-        assert game.input_state is None
-
-        game.stage_list = []
-        game.ar_side = Side.US
-        game.ar_complete()
 
         assert game.input_state is not None
         assert game.input_state.prompt == 'Place NORAD influence.'
+        assert game.ar_side == Side.USSR
 
     def test_norad_requires_us_control_of_canada(self):
         game = make_game()

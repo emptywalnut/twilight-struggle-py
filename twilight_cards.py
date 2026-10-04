@@ -1173,6 +1173,7 @@ class NORAD(Card):
             game_instance.map.has_us_influence,
             prompt='Place NORAD influence.',
         )
+        game_instance.input_state.context['source_card'] = self.name
 
     def use_event(self, game_instance, side: Side):
         self.event_occurred = True
