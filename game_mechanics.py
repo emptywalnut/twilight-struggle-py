@@ -637,7 +637,15 @@ class Game:
             side = self.ar_side
 
         if 'Missile_Envy' in self.basket[side] and 'Missile_Envy' in self.hand[side]:
-            playable_cards = ['Missile_Envy']
+            scoring = [c for c in self.hand[side]
+                       if self.cards[c].card_type == 'Scoring']
+            if scoring and len(scoring) >= self.ars_remaining(side):
+                playable_cards = scoring
+            else:
+                playable_cards = ['Missile_Envy']
+                if ('UN_Intervention' in self.hand[side]
+                        and self.cards['UN_Intervention'].can_event(self, side)):
+                    playable_cards.append('UN_Intervention')
         else:
             if 'Missile_Envy' in self.basket[side] and 'Missile_Envy' not in self.hand[side]:
                 self.safe_remove_from_basket(side, 'Missile_Envy')
@@ -713,6 +721,9 @@ class Game:
             )
 
         can_influence = self.can_place_influence(side, card_name)
+        forced_ops = ('Missile_Envy' in self.basket[side]
+                      and card_name in ('Missile_Envy', 'UN_Intervention'))
+        un_exception = forced_ops and card_name == 'UN_Intervention'
         if influence_restriction is not None:
             reps = self.get_global_effective_ops(
                 side, self.cards[card_name].info.ops)
@@ -728,11 +739,12 @@ class Game:
                 side, card_name),
             not un_intervention and not is_event_resolved and self.can_resolve_event_first(
                 side, card_name),
-            can_influence,
-            self.can_realign_at_all(side),
-            self.can_coup_at_all(side) and can_coup,
-            not is_event_resolved and self.can_space(side, card_name),
+            can_influence and not un_exception,
+            self.can_realign_at_all(side) and not un_exception,
+            self.can_coup_at_all(side) and can_coup and not un_exception,
+            not is_event_resolved and not forced_ops and self.can_space(side, card_name),
             (not is_event_resolved
+             and not forced_ops
              and self.ars_by_turn[side][self.turn_track] == 8
              and self.ar_track == 8)
         ]
