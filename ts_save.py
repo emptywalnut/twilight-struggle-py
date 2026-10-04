@@ -55,6 +55,10 @@ def position_snapshot(game: Game, *, include_hands: bool = False) -> dict:
     included.
     """
     winner = getattr(game, "termination_winner", Side.NEUTRAL)
+    rounds_by_turn = [list(game.ars_by_turn[Side.USSR]), list(game.ars_by_turn[Side.US])]
+    for side in (Side.USSR, Side.US):
+        if game.turn_track < len(rounds_by_turn[side]):
+            rounds_by_turn[side][game.turn_track] = game.ars_this_turn(side)
     position = {
         "turn": game.turn_track,
         "ar": game.ar_track,
@@ -65,8 +69,8 @@ def position_snapshot(game: Game, *, include_hands: bool = False) -> dict:
         "space": list(game.space_track),
         "spaced_turns": list(game.spaced_turns),
         "ars_by_turn": {
-            "USSR": list(game.ars_by_turn[Side.USSR]),
-            "US": list(game.ars_by_turn[Side.US]),
+            "USSR": rounds_by_turn[Side.USSR],
+            "US": rounds_by_turn[Side.US],
         },
         "map": {
             name: [country.influence[Side.USSR], country.influence[Side.US]]

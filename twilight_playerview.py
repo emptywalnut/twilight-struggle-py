@@ -54,6 +54,9 @@ class PlayerView:
         self.ar_track = game.ar_track
         self.ar_side = game.ar_side
         self.ars_by_turn = [list(game.ars_by_turn[Side.USSR]), list(game.ars_by_turn[Side.US])]
+        for player_side in (Side.USSR, Side.US):
+            if game.turn_track < len(self.ars_by_turn[player_side]):
+                self.ars_by_turn[player_side][game.turn_track] = game.ars_this_turn(player_side)
         self.ar_side_done = list(game.ar_side_done)
         self.defcon_track = game.defcon_track
         self.milops_track = list(game.milops_track)

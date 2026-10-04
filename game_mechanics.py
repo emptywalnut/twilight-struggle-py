@@ -241,9 +241,6 @@ class Game:
                     if self.terminated:
                         return
 
-                if i == 8:
-                    self.ars_by_turn[side][self.turn_track] = 8
-
     def change_vp(self, n: int):
         '''
         Changes the number of VPs. Positive values are in favour of the USSR player.
@@ -475,12 +472,19 @@ class Game:
             # Headline phase fully resolved: clear the attribution marker.
             self.headline_resolving_side = None
 
+    def ars_this_turn(self, side):
+        """Current round limit, including the live Space Station privilege."""
+        rounds = self.ars_by_turn[side][self.turn_track]
+        if self.space_track[side] == 8 and self.space_track[side.opp] < 8:
+            rounds = max(rounds, 8)
+        return rounds
+
     def ars_remaining(self, side):
         '''
         This gets the number of ARs remaining in the current turn for a side.
         Is inclusive of the current AR.
         '''
-        return max(0, self.ars_by_turn[side][self.turn_track] - self.ar_track + 1 - self.ar_side_done[side])
+        return max(0, self.ars_this_turn(side) - self.ar_track + 1 - self.ar_side_done[side])
 
     def ar_complete(self):
 
@@ -733,7 +737,7 @@ class Game:
             self.can_coup_at_all(side) and can_coup,
             not is_event_resolved and self.can_space(side, card_name),
             (not is_event_resolved
-             and self.ars_by_turn[side][self.turn_track] == 8
+             and self.ars_this_turn(side) == 8
              and self.ar_track == 8)
         ]
 

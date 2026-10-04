@@ -486,7 +486,7 @@ s turn                  Displays information on the current turn and action roun
                 'Spaced turns': self.game.spaced_turns,
                 'US Basket': self.game.basket[Side.US],
                 'USSR Basket': self.game.basket[Side.USSR],
-                'ARs this turn': (self.game.ars_by_turn[0][self.game.turn_track], self.game.ars_by_turn[1][self.game.turn_track])
+                'ARs this turn': (self.game.ars_this_turn(Side.USSR), self.game.ars_this_turn(Side.US))
             }
 
             print(f'T{self.game.turn_track} {ar_output}, {side}\'s turn.')
