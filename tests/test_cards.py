@@ -1086,6 +1086,45 @@ class TestMidWarCards:
         assert sorted(game.input_state.legal_options) == sorted(
             cards + ['Do not discard more cards.'])
 
+    @pytest.mark.parametrize('remaining', range(7))
+    @pytest.mark.parametrize('discard_count', [0, 2, 5])
+    def test_our_man_in_tehran_short_deck_keeps_five_card_limit(self, remaining, discard_count):
+        game = make_game()
+        game.map['Iran'].set_influence(0, 2)
+        cards = ['Fidel', 'NATO', 'Duck_and_Cover', 'CIA_Created', 'Blockade',
+                 'Nasser', 'Truman_Doctrine', 'Korean_War', 'Vietnam_Revolts',
+                 'Formosan_Resolution', 'De_Gaulle_Leads_France', 'Suez_Crisis']
+        game.draw_pile, game.discard_pile = cards[:remaining], cards[remaining:]
+        game.hand[Side.USSR], game.hand[Side.US] = ['The_China_Card'], ['Our_Man_In_Tehran']
+
+        game.cards['Our_Man_In_Tehran'].use_event(game, Side.US)
+        if remaining < 5:
+            while not game.input_state.complete:
+                assert game.input_state.recv(next(iter(game.input_state.legal_options)))
+            game.stage_complete()  # Resume the partially completed draw.
+            game.stage_complete()  # Open the discard menu.
+
+        peek = list(game.hand[Side.NEUTRAL])
+        assert len(peek) == 5
+        assert peek[:min(remaining, 5)] == list(reversed(cards[:remaining][-5:]))
+        assert game.input_state.side == Side.US
+        assert set(game.input_state.legal_options) == set(peek + ['Do not discard more cards.'])
+        for card in peek[:discard_count]:
+            assert game.input_state.recv(card)
+        if discard_count < 5:
+            assert game.input_state.recv('Do not discard more cards.')
+        assert game.input_state.complete
+
+        game.stage_complete()  # Return unchosen cards and shuffle the draw pile.
+        while not game.input_state.complete:
+            assert game.input_state.recv(next(iter(game.input_state.legal_options)))
+        expected_discard = (cards[remaining:] if remaining >= 5 else []) + peek[:discard_count]
+        assert sorted(game.discard_pile) == sorted(expected_discard)
+        assert sorted(game.draw_pile + game.discard_pile) == sorted(cards)
+        assert game.hand[Side.NEUTRAL] == []
+        assert game.hand[Side.USSR] == ['The_China_Card']
+        assert game.hand[Side.US] == ['Our_Man_In_Tehran']
+
     def test_ask_not_draws_only_us_replacements_after_reshuffle(self):
         game = make_game()
         game.hand[Side.USSR] = ['CIA_Created', 'Blockade']

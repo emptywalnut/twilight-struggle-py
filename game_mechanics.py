@@ -1546,7 +1546,7 @@ class Game:
 
         if first_side == Side.NEUTRAL:
             # Our_Man_In_Tehran path — draw 5 cards into the neutral hand.
-            for _ in range(5):
+            while len(self.hand[Side.NEUTRAL]) < 5:
                 if not self.draw_pile:
                     if not self.discard_pile:
                         return
