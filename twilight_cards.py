@@ -2878,6 +2878,8 @@ class Tear_Down_This_Wall(Card):
 
     def use_event(self, game_instance, side: Side):
         self.event_occurred = True
+        if self.name not in game_instance.basket[Side.US]:
+            game_instance.basket[Side.US].append(self.name)
         if 'Willy_Brandt' in game_instance.basket[Side.USSR]:
             game_instance.basket[Side.USSR].remove('Willy_Brandt')
         game_instance.map['East_Germany'].change_influence(0, 3)
