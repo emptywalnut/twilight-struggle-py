@@ -624,6 +624,35 @@ class Game:
 
         return available_space_turn(self, side) and enough_ops(self, side, card_name)
 
+    def pending_hand_cards(self, side: Side):
+        """Already played cards physically retained until queued settlement."""
+        pending = set()
+        inp = self.input_state
+        if (inp is not None and inp.state == InputType.SELECT_CARD_ACTION
+                and (inp.context.get('is_event_resolved') or inp.context.get('un_intervention'))):
+            pending.add(inp.context['source_card'])
+        for stage in self.stage_list:
+            if not isinstance(stage, partial):
+                continue
+            callback = stage.func
+            if (getattr(callback, '__name__', '') == 'dispose'
+                    and isinstance(getattr(callback, '__self__', None), Card)
+                    and stage.args == (self, side)):
+                pending.add(callback.__self__.name)
+            elif (callback == self.select_action and stage.args[:1] == (side,)
+                  and stage.keywords.get('is_event_resolved')):
+                pending.add(stage.args[1])
+        return pending.intersection(self.hand[side])
+
+    def available_hand(self, side: Side):
+        pending = self.pending_hand_cards(side)
+        return [card for card in self.hand[side] if card not in pending]
+
+    def random_hand_cards(self, side: Side, *, exclude=()):
+        """Live random-discard/draw candidates, never including The China Card."""
+        return [card for card in self.available_hand(side)
+                if card != 'The_China_Card' and card not in exclude]
+
     def select_card(self, side: Side = Side.NEUTRAL):
         '''
         Stage for a single player to choose a card in hand to play.

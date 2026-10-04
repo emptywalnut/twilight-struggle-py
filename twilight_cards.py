@@ -229,6 +229,8 @@ class Five_Year_Plan(Card):
     event_text = 'USSR player must randomly discard one card. If the card is a US associated Event, the Event occurs immediately. If the card is a USSR associated Event or and Event applicable to both players, then the card must be discarded without triggering the Event.'
 
     def callback(self, game_instance, card_name: str):
+        if card_name not in game_instance.random_hand_cards(Side.USSR, exclude=(self.name,)):
+            return False
         game_instance.input_state.reps -= 1
         print(f'{card_name} was selected by Five_Year_Plan.')
         if game_instance.cards[card_name].info.owner == Side.US:
@@ -244,10 +246,7 @@ class Five_Year_Plan(Card):
 
     def use_event(self, game_instance, side: Side):
         self.event_occurred = True
-        eligible_cards = [
-            card_name for card_name in game_instance.hand[Side.USSR]
-            if card_name not in ('Five_Year_Plan', 'The_China_Card')
-        ]
+        eligible_cards = game_instance.random_hand_cards(Side.USSR, exclude=(self.name,))
         if not eligible_cards:
             return
 
@@ -2068,6 +2067,8 @@ class Grain_Sales_to_Soviets(Card):
         )
 
     def random_card_callback(self, game_instance, card_name: str):
+        if card_name not in game_instance.random_hand_cards(Side.USSR, exclude=(self.name,)):
+            return False
         game_instance.input_state.reps -= 1
         print(f'{card_name} was selected by Grain Sales to Soviets.')
         game_instance.hand[Side.USSR].remove(card_name)
@@ -2083,15 +2084,15 @@ class Grain_Sales_to_Soviets(Card):
     def use_event(self, game_instance, side: Side):
         self.event_occurred = True
 
-        if not any(n for n in game_instance.hand[Side.USSR] if n != 'Grain_Sales_to_Soviets'):
+        eligible_cards = game_instance.random_hand_cards(Side.USSR, exclude=(self.name,))
+        if not eligible_cards:
             game_instance.select_action(Side.US, 'Blank_2_Op_Card', is_event_resolved=True)
             return
 
         game_instance.input_state = Input(
             Side.NEUTRAL, InputType.SELECT_CARD,
             partial(self.random_card_callback, game_instance),
-            (n for n in game_instance.hand[Side.USSR]
-             if n != 'Grain_Sales_to_Soviets'),
+            eligible_cards,
             prompt='Grain Sales to Soviets: US player randomly selects a card from USSR player\'s hand.'
         )
 
@@ -2728,6 +2729,8 @@ class Terrorism(Card):
     event_text = 'Opponent must randomly discard one card. If played by USSR and Iranian Hostage Crisis is in effect, the US player must randomly discard two cards. (Events on discards do not occur.)'
 
     def callback(self, game_instance, side, card_name: str):
+        if card_name not in game_instance.random_hand_cards(side.opp, exclude=(self.name,)):
+            return False
         game_instance.input_state.reps -= 1
         game_instance.hand[side.opp].remove(card_name)
         game_instance.discard_pile.append(card_name)
@@ -2737,10 +2740,7 @@ class Terrorism(Card):
         self.event_occurred = True
         reps = 2 if 'Iranian_Hostage_Crisis' in game_instance.basket[
             Side.USSR] and side == Side.USSR else 1
-        eligible_cards = [
-            card_name for card_name in game_instance.hand[side.opp]
-            if card_name != 'The_China_Card'
-        ]
+        eligible_cards = game_instance.random_hand_cards(side.opp, exclude=(self.name,))
         reps = min(reps, len(eligible_cards))
         if reps <= 0:
             return
