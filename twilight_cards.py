@@ -402,7 +402,7 @@ class Blockade(Card):
     def use_event(self, game_instance, side: Side):
         self.event_occurred = True
         eligible_discards = [
-            n for n in game_instance.hand[Side.US]
+            n for n in game_instance.available_hand(Side.US)
             if n not in ('The_China_Card', self.name)
             and game_instance.get_global_effective_ops(
                 Side.US, game_instance.cards[n].info.ops
@@ -423,6 +423,7 @@ class Blockade(Card):
             context={
                 'source_card': self.name,
                 'hand_exit': 'blockade_target',
+                'discard_min_ops': 3,
             },
         )
 
@@ -937,10 +938,13 @@ class UN_Intervention(Card):
     event_text = 'Play this card simultaneously with a card containing your opponent\'s associated Event. The Event is cancelled, but you may use its Operations value to Conduct Operations. The cancelled event returns to the discard pile. May not be played during headline phase.'
 
     def can_event(self, game_instance, side):
-        return any((game_instance.cards[c].info.owner == side.opp for c in game_instance.hand[side]))
+        return any((game_instance.cards[c].info.owner == side.opp for c in game_instance.available_hand(side)))
 
     def callback(self, game_instance, side, card_name: str):
         if game_instance.terminated:
+            return False
+        if (card_name not in game_instance.available_hand(side)
+                or game_instance.cards[card_name].owner != side.opp):
             return False
         game_instance.input_state.reps -= 1
         game_instance.select_action(side, f'{card_name}', un_intervention=True)
@@ -951,7 +955,7 @@ class UN_Intervention(Card):
         game_instance.input_state = Input(
             side, InputType.SELECT_CARD,
             partial(self.callback, game_instance, side),
-            (n for n in game_instance.hand[side]
+            (n for n in game_instance.available_hand(side)
              if game_instance.cards[n].info.owner == side.opp),
             prompt=f'You may pick a opponent-owned card from your hand to use with UN Intervention.',
             context={
@@ -1598,6 +1602,8 @@ class Missile_Envy(Card):
         return not self.event_occurred
 
     def missile_envy_exchange_callback(self, game, side, card: str):
+        if card not in self.exchange_cards(game, side):
+            return False
         game.input_state.reps -= 1
         game.hand[side.opp].remove(card)
         game.hand[side].append(card)
@@ -1635,13 +1641,10 @@ class Missile_Envy(Card):
 
         return True
 
-    def use_event(self, game, side: Side):
-        self.event_occurred = True
-        game.basket[side.opp].append(self.name)
-
+    def exchange_cards(self, game, side):
         best_ops = 0
         best_cards = []
-        for card_name in game.hand[side.opp]:
+        for card_name in game.available_hand(side.opp):
             card = game.cards[card_name]
             if (card_name == 'The_China_Card'
                     or card.info.card_type == 'Scoring'
@@ -1654,11 +1657,16 @@ class Missile_Envy(Card):
                 best_cards = [card_name]
             elif curr_ops == best_ops:
                 best_cards.append(card_name)
+        return best_cards
+
+    def use_event(self, game, side: Side):
+        self.event_occurred = True
+        game.basket[side.opp].append(self.name)
 
         game.input_state = Input(
             side.opp, InputType.SELECT_CARD,
             partial(self.missile_envy_exchange_callback, game, side),
-            best_cards,
+            self.exchange_cards(game, side),
             prompt='Select card to exchange with Missile Envy.',
             reps=1
         )
@@ -2289,6 +2297,10 @@ class Ask_Not_What_Your_Country_Can_Do_For_You(Card):
         self.discarded_count = 0
 
     def callback(self, game_instance, option_stop_early, card_name: str):
+        if card_name != option_stop_early and (
+                card_name in ('The_China_Card', self.name)
+                or card_name not in game_instance.available_hand(Side.US)):
+            return False
         game_instance.input_state.reps -= 1
         if card_name != option_stop_early:
             game_instance.hand[Side.US].remove(card_name)
@@ -2323,7 +2335,7 @@ class Ask_Not_What_Your_Country_Can_Do_For_You(Card):
         self.discarded_count = 0
         option_stop_early = 'Do not discard.'
         eligible_cards = [
-            card_name for card_name in game_instance.hand[Side.US]
+            card_name for card_name in game_instance.available_hand(Side.US)
             if card_name not in ('The_China_Card', self.name)
         ]
 
@@ -2843,7 +2855,7 @@ class Latin_American_Debt_Crisis(Card):
         self.event_occurred = True
 
         eligible_discards = [
-            n for n in game_instance.hand[Side.US]
+            n for n in game_instance.available_hand(Side.US)
             if n not in ('The_China_Card', self.name)
             and game_instance.get_global_effective_ops(
                 Side.US, game_instance.cards[n].info.ops
@@ -2862,7 +2874,8 @@ class Latin_American_Debt_Crisis(Card):
                         partial(_ladc_did_not_discard, game_instance))),
             eligible_discards,
             prompt='You may discard a card. If you choose not to discard, USSR chooses two countries in South America to double USSR influence.',
-            option_stop_early='Do not discard.'
+            option_stop_early='Do not discard.',
+            context={'source_card': self.name, 'discard_min_ops': 3},
         )
 
 
@@ -2941,11 +2954,11 @@ class Aldrich_Ames_Remix(Card):
             partial(game_instance.safe_remove_from_basket, Side.USSR, self.name))
         if game_instance.players[Side.USSR] is not None:
             view = game_instance.players[Side.USSR]
-            view.update_opp_hand(game_instance.hand[Side.US])
+            view.update_opp_hand(game_instance.available_hand(Side.US))
             if hasattr(view, 'stamp_opp_hand_observation'):
                 view.stamp_opp_hand_observation(game_instance.shuffle_count)
         eligible_cards = [
-            card_name for card_name in game_instance.hand[Side.US]
+            card_name for card_name in game_instance.available_hand(Side.US)
             if card_name not in ('The_China_Card', self.name)
         ]
         if not eligible_cards:
