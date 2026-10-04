@@ -2057,7 +2057,12 @@ class Grain_Sales_to_Soviets(Card):
                 partial(_grain_sales_return_card, game_instance, card_name)
         }
 
-        if 'UN_Intervention' in game_instance.hand[Side.US] and \
+        # GMT FAQ #32: UN Intervention may not be used during headlines,
+        # including cards received through Grain Sales.
+        if game_instance.ar_track == 0 and card_name == 'UN_Intervention':
+            del option_function_mapping['Use card normally']
+
+        if game_instance.ar_track > 0 and 'UN_Intervention' in game_instance.hand[Side.US] and \
                 game_instance.cards[card_name].info.owner == Side.USSR:
             option_function_mapping['Use card with UN Intervention'] = partial(
                 self.use_un_intervention, game_instance, card_name)
