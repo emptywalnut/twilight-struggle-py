@@ -18,7 +18,7 @@ DEFAULT_HANDICAP = -2
 
 def _choose_coup_country(game_instance, side, effective_ops, card_name,
                          restricted_list, free, che, event_after_ops=False,
-                         ignore_defcon=False):
+                         ignore_defcon=False, option_stop_early=''):
     """Coup target selection stage (module-level for deepcopy safety:
     game_instance must arrive via partial args so cloned games rebind it —
     a closure over the original game would keep mutating the wrong object)."""
@@ -33,6 +33,7 @@ def _choose_coup_country(game_instance, side, effective_ops, card_name,
                 ignore_defcon=ignore_defcon)
             and n in restricted_list),
         prompt=f'Select a country to coup using operations from {card_name}.',
+        option_stop_early='Skip Che coup.' if che else option_stop_early,
         context={
             'source_card': card_name,
             'event_after_ops': bool(event_after_ops),
@@ -540,6 +541,17 @@ class Game:
         if 'Cuban_Missile_Crisis' not in self.basket[side.opp]:
             return
         self.cards['Cuban_Missile_Crisis'].cuban_missile_remove(self, side)
+
+    def lose_cmc_coup(self, side: Side) -> bool:
+        """CMC loses on coup initiation, before dice or board changes."""
+        if 'Cuban_Missile_Crisis' not in self.basket[side.opp]:
+            return False
+        self.defcon_track = 1
+        self.terminate(
+            side=side.opp, reason='thermonuclear_war',
+            context={'defcon': 1, 'cause': 'Cuban_Missile_Crisis',
+                     'loser': side.toStr()})
+        return True
 
     def can_play_event(self, side: Side, card_name: str):
         '''
@@ -1154,12 +1166,12 @@ class Game:
         if self.terminated:
             return True
 
-        if che and self.map[name].influence[Side.US] < before_us_inf:
+        if che == 1 and self.map[name].influence[Side.US] < before_us_inf:
             print('You are allowed a second coup from Che.')
             self.card_operation_coup(Side.USSR, 'Che', restricted_list=[
                 n for n in ca_sa_af
                 if n != name and not self.map[n].info.battleground
-            ], che=False)
+            ], che=2)
 
         return True
 
@@ -1167,6 +1179,11 @@ class Game:
                       name: str, free=False, che=False,
                       ignore_defcon=False) -> bool:
         self.input_state.reps -= 1
+
+        if name == self.input_state.option_stop_early:
+            return True
+        if self.input_state.option_stop_early and self.lose_cmc_coup(side):
+            return True
 
         local_ops_modifier = 0
         if card_name == 'The_China_Card' and name in self.cards['The_China_Card']._region:
@@ -1185,7 +1202,7 @@ class Game:
     def card_operation_coup(self, side: Side, card_name: str,
                             restricted_list: Sequence[str] = None,
                             free=False, che=False, event_after_ops=False,
-                            ignore_defcon=False):
+                            ignore_defcon=False, option_stop_early=''):
         '''
         Stage when a player is given the opportunity to coup. Provides a list
         of countries which can be couped and waits for player input.
@@ -1215,7 +1232,7 @@ class Game:
         # deepcopy-based lookahead/search clones rebind to the clone.
         self.stage_list.append(partial(
             _choose_coup_country, self, side, effective_ops, card_name,
-            restricted_list, free, che, event_after_ops, ignore_defcon))
+            restricted_list, free, che, event_after_ops, ignore_defcon, option_stop_early))
 
     def space_dice_callback(self, side, num: str):
         self.input_state.reps -= 1

@@ -2715,7 +2715,8 @@ class Ortega_Elected_in_Nicaragua(Card):
         self.event_occurred = True
         game_instance.map.set_influence('Nicaragua', Side.US, 0)
         game_instance.card_operation_coup(Side.USSR, 'Ortega_Elected_in_Nicaragua', restricted_list=[
-            n for n in game_instance.map['Nicaragua'].info.adjacent_countries], free=True)
+            n for n in game_instance.map['Nicaragua'].info.adjacent_countries], free=True,
+            option_stop_early='Skip Ortega coup.')
 
 
 class Terrorism(Card):
