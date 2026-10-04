@@ -2457,6 +2457,10 @@ class Our_Man_In_Tehran(Card):
         if not options:
             return
 
+        if game_instance.players[Side.US] is not None:
+            game_instance.players[Side.US].exclude_opp_cards(
+                options, game_instance.unknown_hand_draws[Side.USSR])
+
         stop_opt = 'Do not discard more cards.'
         game_instance.input_state = Input(
             Side.US, InputType.SELECT_CARD,
