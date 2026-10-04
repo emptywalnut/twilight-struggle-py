@@ -47,6 +47,7 @@ class Game:
         SPACE_ROLL_MAX = (3, 4, 3, 4, 3, 4, 3, 2)
         SPACE_VPS = ((2, 1), (0, 0), (2, 0), (0, 0),
                      (3, 1), (0, 0), (4, 2), (2, 0))
+        UN_RETRIEVERS = ('Grain_Sales_to_Soviets', 'Star_Wars', 'Missile_Envy')
         SCORING = {
             MapRegion.ASIA: (3, 7, 9),
             MapRegion.EUROPE: (3, 7, 120),
@@ -244,6 +245,20 @@ class Game:
                 if i == 8:
                     self.ars_by_turn[side][self.turn_track] = 8
 
+    def resolve_wwby(self, un_intervention=False):
+        """Settle on the next real US AR, before any US VP award (FAQ #50)."""
+        name = 'We_Will_Bury_You'
+        if (self.terminated or self.final_scoring_active or self.ar_track == 0
+                or self.ar_side != Side.US or self.ar_side_done[Side.US]
+                or name not in self.basket[Side.USSR]):
+            return
+        activated = getattr(self.cards[name], 'activated_at', None)
+        if activated is not None and activated >= (self.turn_track, self.ar_track, self.ar_side):
+            return
+        self.basket[Side.USSR].remove(name)
+        if not un_intervention:
+            self.change_vp(3)
+
     def change_vp(self, n: int):
         '''
         Changes the number of VPs. Positive values are in favour of the USSR player.
@@ -253,6 +268,10 @@ class Game:
         n : int
             Number of VPs to change by.
         '''
+        if n < 0:
+            self.resolve_wwby()
+            if self.terminated:
+                return
         self.vp_track += n
         if ((self.vp_track >= 20 or self.vp_track <= -20)
             and not self.final_scoring_active):
@@ -484,6 +503,10 @@ class Game:
 
     def ar_complete(self):
 
+        self.resolve_wwby()
+        if self.terminated:
+            return
+
         # Action rounds must never see a stale headline attribution marker.
         self.headline_resolving_side = None
 
@@ -653,6 +676,12 @@ class Game:
 
     def card_callback(self, side: Side, card_name: str):
         self.input_state.reps -= 1
+        # Native optional AR8 can still be declined in the action menu.
+        if (side == Side.US and self.ar_track != 8
+                and card_name not in ('UN_Intervention', *Game.Default.UN_RETRIEVERS)):
+            self.resolve_wwby()
+            if self.terminated:
+                return True
         if self.cards[card_name].info.card_type == 'Scoring':
             self.stage_list.append(
                 partial(self.resolve_card_action, side,
@@ -766,12 +795,14 @@ class Game:
         card = self.cards[card_name]
         opp_event = (card.info.owner == side.opp)
 
-        # We Will Bury You resolves on the US player's next action round:
-        # unless UN Intervention is played as an Event, the USSR gains 3 VP.
-        if side == Side.US and 'We_Will_Bury_You' in self.basket[Side.USSR]:
-            if not (card_name == 'UN_Intervention' and action == CardAction.PLAY_EVENT):
-                self.change_vp(3)
-            self.basket[Side.USSR].remove('We_Will_Bury_You')
+        if action == CardAction.SKIP_OPTIONAL_AR:
+            self.ar_side_done[side] = True
+            return
+
+        if side == Side.US and not (action == CardAction.PLAY_EVENT
+                                   and card_name in Game.Default.UN_RETRIEVERS):
+            self.resolve_wwby(un_intervention=(card_name == 'UN_Intervention'
+                                               and action == CardAction.PLAY_EVENT))
             if self.terminated:
                 return
 
@@ -906,6 +937,11 @@ class Game:
         '''
         Runs the associated card event function with <side> argument.
         '''
+        if side == Side.US and card_name not in Game.Default.UN_RETRIEVERS:
+            self.resolve_wwby(un_intervention=(card_name == 'UN_Intervention'
+                                               and self.cards[card_name].can_event(self, side)))
+            if self.terminated:
+                return
         self.cards[card_name].use_event(self, side)
 
     '''
@@ -1431,6 +1467,11 @@ class Game:
         trap_name: str
             Name of the basket effect. Can be either 'Quagmire' or 'Bear_Trap'.
         '''
+
+        if side == Side.US:
+            self.resolve_wwby()  # Quagmire cannot play UN as an Event.
+            if self.terminated:
+                return
 
         scoring_cards = [n for n in self.hand[side]
                          if self.cards[n].info.card_type == 'Scoring']

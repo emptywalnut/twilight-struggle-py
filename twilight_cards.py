@@ -947,6 +947,8 @@ class UN_Intervention(Card):
         return True
 
     def use_event(self, game_instance, side: Side):
+        if side == Side.US and self.can_event(game_instance, side):
+            game_instance.resolve_wwby(un_intervention=True)
         self.event_occurred = True
         game_instance.input_state = Input(
             side, InputType.SELECT_CARD,
@@ -1679,6 +1681,7 @@ class We_Will_Bury_You(Card):
         game_instance.change_defcon(-1)
         if game_instance.terminated:
             return
+        self.activated_at = (game_instance.turn_track, game_instance.ar_track, game_instance.ar_side)
         game_instance.basket[Side.USSR].append('We_Will_Bury_You')
 
 
@@ -2037,6 +2040,7 @@ class Grain_Sales_to_Soviets(Card):
     event_text = 'Randomly choose one card from USSR hand. Play it or return it. If Soviet player has no cards, or returned, use this card to conduct Operations normally.'
 
     def use_un_intervention(self, game_instance, card_name: str):
+        game_instance.resolve_wwby(un_intervention=True)
         # the only exception where UN intervention is used out of place without calling card_callback
         game_instance.stage_list.append(
             partial(game_instance.cards['UN_Intervention'].dispose,

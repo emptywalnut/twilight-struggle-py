@@ -148,6 +148,7 @@ def test_wwby_awards_vp_on_us_non_event_action():
     # Any US action other than playing UN Intervention as an Event triggers
     # the +3 VP, including plain Operations.
     game = make_game()
+    game.ar_side = Side.US
     game.basket[Side.USSR].append("We_Will_Bury_You")
 
     game.resolve_card_action(Side.US, "Duck_and_Cover", "INFLUENCE")
@@ -158,6 +159,7 @@ def test_wwby_awards_vp_on_us_non_event_action():
 
 def test_wwby_no_vp_when_un_intervention_played_as_event():
     game = make_game()
+    game.ar_side = Side.US
     game.basket[Side.USSR].append("We_Will_Bury_You")
 
     game.resolve_card_action(Side.US, "UN_Intervention", "PLAY_EVENT")
@@ -180,6 +182,7 @@ def test_wwby_not_consumed_on_ussr_action_round():
 
 def test_wwby_vp_autovictory_stops_action_resolution():
     game = make_game()
+    game.ar_side = Side.US
     game.vp_track = 17
     game.basket[Side.USSR].append("We_Will_Bury_You")
 
