@@ -521,6 +521,14 @@ class Game:
                 break
             self.ar_side = Side(self.ar_side + 1)
 
+        # Rule 6.1.1: events resolved before Ops must not change this AR's reach.
+        self.ar_influence_reach = {
+            side: frozenset(name for name, country in self.map.ALL.items()
+                            if not country.info.superpower and any(
+                                self.map[n].influence[side] > 0
+                                for n in [name, *country.info.adjacent_countries]))
+            for side in (Side.USSR, Side.US)
+        }
         self.stage_list.append(self.ar_complete)
         next_stage = self.select_card
         if self.ar_side == Side.US and 'Quagmire' in self.basket[Side.US]:
@@ -982,6 +990,10 @@ class Game:
         reps = self.get_global_effective_ops(side, card.info.ops)
         allowed = (set(CountryInfo.ALL) if restricted_list is None
                else set(restricted_list))
+
+        # Also freeze standalone/headline Ops, where no AR snapshot exists.
+        # Use the maximum budget here; per-marker control costs remain live.
+        allowed = {n for n in allowed if self.map.can_place_influence(self, n, side, 4)}
 
         self.input_state = Input(
             side, InputType.SELECT_COUNTRY,

@@ -2443,7 +2443,7 @@ class TestInput:
 
         assert list(inp.available_options) == ['UK']
 
-    def test_ops_influence_adds_country_reached_during_same_action(self):
+    def test_ops_influence_does_not_expand_reach_during_same_action(self):
         game = make_game()
         for name, country in game.map.ALL.items():
             if not country.info.superpower:
@@ -2454,8 +2454,8 @@ class TestInput:
         assert 'Sweden' not in game.input_state.legal_options
         assert game.input_state.recv('Finland') is True
 
-        assert 'Sweden' in game.input_state.legal_options
-        assert game.input_state.recv('Sweden') is True
+        assert 'Sweden' not in game.input_state.legal_options
+        assert game.input_state.recv('Sweden') is False
 
     def test_ops_influence_does_not_escape_restricted_country_set(self):
         game = make_game()

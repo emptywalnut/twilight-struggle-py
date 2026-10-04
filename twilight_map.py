@@ -340,6 +340,10 @@ class GameMap:
             if country.info.superpower:
                 return False
 
+            reach = getattr(game_instance, 'ar_influence_reach', None)
+            if game_instance.ar_track > 0 and reach is not None:
+                return name in reach[side]
+
             countries_to_check = country.info.adjacent_countries.copy()
             countries_to_check.append(name)
             for country in countries_to_check:
